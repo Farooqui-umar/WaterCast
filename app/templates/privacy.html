@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Privacy - WaterCaste</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/css/fonts.css?v={{ asset_v }}">
+<link rel="stylesheet" href="/static/css/login.css?v={{ asset_v }}">
+<style>.doc{max-width:760px;margin:0 auto;padding:calc(var(--header-h) + 36px) 24px 64px;line-height:1.7}.doc h1{font-size:34px;margin-bottom:6px}.doc h2{font-size:19px;margin:30px 0 8px;color:var(--orange-2)}.doc p,.doc li{color:var(--dim);font-size:15px}.doc ul{padding-left:20px}.doc .note{margin-top:34px;padding:14px 18px;border:1px dashed var(--border);border-radius:12px;font-size:13px;color:var(--faint)}</style>
+</head>
+<body>
+<header class="site-header"><div class="header-inner">
+  <a href="/" class="brand"><span class="brand-name">WaterCaste</span></a>
+  <a href="/" class="back-link">Back to Home</a>
+</div></header>
+<main class="doc">
+  <h1>Privacy notice</h1>
+  <p>How WaterCaste handles your information. Last updated: see the deployment's release notes.</p>
+  <h2>What we collect</h2>
+  <ul>
+    <li><b>Help requests (SOS):</b> the place you choose or share, its coordinates, the issue type, urgency and the description you type. Visitors only ever see the place name, issue type and status of a request - never coordinates or your description.</li>
+    <li><b>Community posts:</b> the text, optional name and optional locality you type. Posts are public.</li>
+    <li><b>A random device ID</b> stored in your browser (not linked to your identity) so we can limit spam and compute your Trust Score.</li>
+    <li><b>Your location</b> - only if you allow your browser to share it, or type it yourself. It is used to fill your locality, show live weather for that spot and attach a position to a help request you send. It is kept in your browser session and is not stored on the server unless you send a help request.</li>
+    <li><b>Staff accounts</b> (officials): username, password hash and a log of staff actions.</li>
+  </ul>
+  <h2>Who we share it with</h2>
+  <p>To show weather and place names we send <b>coordinates or the place name you searched</b> to our data providers (the weather and geocoding services configured by the operator, by default Open-Meteo and OpenStreetMap). We do not sell personal data and do not run advertising or third-party analytics.</p>
+  <h2>Cookies and storage</h2>
+  <p>A single strictly-necessary, HttpOnly session cookie is set only when a staff member signs in. Your browser's local storage keeps the random device ID; session storage keeps your typed location for the current visit.</p>
+  <h2>How long we keep it</h2>
+  <p>Requests, confirmations, alerts and posts older than the operator's retention period (default 365 days) are deleted automatically.</p>
+  <h2>Your choices</h2>
+  <p>You can refuse location access and type a place instead, clear your browser storage at any time, and ask the operator to delete a post or request you made.</p>
+  <p class="note">This page is a template. The operator of this deployment must review it with legal counsel and complete it with their organisation name, contact address and the data-protection rules that apply to them (for example India's Digital Personal Data Protection Act, 2023, or the GDPR).</p>
+</main>
+</body>
+</html>

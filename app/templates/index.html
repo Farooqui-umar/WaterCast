@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>WaterCaste - hyper-local water alerts</title>
+<meta name="description" content="Real-time rainfall, short-term forecasts and on-the-ground reports from residents, brought into one early-warning system - built for the locality, not just the district.">
+<meta name="theme-color" content="#2d4093">
+<meta property="og:type" content="website">
+<meta property="og:title" content="WaterCaste - hyper-local water alerts">
+<meta property="og:description" content="Real-time rainfall, forecasts and community reports for your locality.">
+<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/img/india-map.webp" as="image" type="image/webp" fetchpriority="high">
+<link rel="stylesheet" href="/static/css/fonts.css?v={{ asset_v }}">
+<link rel="stylesheet" href="/static/css/app.css?v={{ asset_v }}">
+<link rel="stylesheet" href="/static/css/app-late.css?v={{ asset_v }}">
+<link rel="stylesheet" href="/static/css/responsive.css?v={{ asset_v }}">
+<script src="/static/js/intro-guard.js?v={{ asset_v }}"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<noscript><div class="noscript-msg">WaterCaste needs JavaScript to show live data. Please enable it and reload the page.</div></noscript>
+<div id="intro" aria-hidden="true">
+  <div class="intro-scrim"></div>
+  <video id="introVideo" muted playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1"></video>
+</div>
+<script src="/static/js/wcprog.js?v={{ asset_v }}"></script>
+<div id="adminRibbon">ADMIN MODE · CHANGES SAVE INSTANTLY</div>
+<div id="adminToast"></div>
+<div id="officialGate" aria-hidden="true"><div><div class="gate-text">FOR OFFICIAL USE ONLY</div><div class="gate-line"></div></div></div>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand" id="brandLogo">
+      <span class="brand-icon">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="badgeGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#5b93e8"/>
+      <stop offset="0.5" stop-color="#3768d6"/>
+      <stop offset="1" stop-color="#1c3f9e"/>
+    </linearGradient>
+    <radialGradient id="gloss" cx="0.35" cy="0.22" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="dropGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf2ff"/>
+    </linearGradient>
+    <filter id="dshadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0a1f5c" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <circle cx="100" cy="100" r="96" fill="url(#badgeGrad)" stroke="#16306e" stroke-width="2.5"/>
+  <circle cx="100" cy="100" r="96" fill="url(#gloss)"/>
+  <g filter="url(#dshadow)">
+    <path d="M100,42 C100,42 62,98 62,128 C62,151.2 79.4,170 100,170 C120.6,170 138,151.2 138,128 C138,98 100,42 100,42 Z" fill="url(#dropGrad)"/>
+  </g>
+  <g transform="translate(100,131)">
+    <path d="M20.73,13.98 A25,25 0 1 1 20.73,-13.98 L10.78,-7.27 A13,13 0 1 0 10.78,7.27 Z" fill="#3aa0c9"/>
+  </g>
+</svg>
+      </span>
+      <span class="brand-name">WaterCaste</span><span id="backendStatus" title="Backend connection status" style="width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block;margin-left:4px;flex-shrink:0;box-shadow:0 0 6px rgba(245,158,11,.6);"></span>
+    </div>
+    <nav class="main-nav" id="mainNav">
+      <a href="#" class="nav-link active" data-goto="0">Home</a>
+      <a href="#" class="nav-link" data-goto="1">News</a>
+      <a href="#" class="nav-link" data-goto="2">Request Help</a>
+      <a href="#" class="nav-link" data-goto="3">Search Your City</a>
+      <span class="nav-indicator" id="navIndicator"></span>
+    </nav>
+    <div class="header-actions">
+      <div class="search-box">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search forecast in your area" />
+      </div>
+      <button class="alerts-btn" data-goto="4">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Alerts
+      </button>
+      <button class="login-btn" id="loginBtn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Login
+      </button>
+    </div>
+  </div>
+</header>
+<main id="main" tabindex="-1" class="viewport">
+  <div class="track" id="track">
+    <section class="page" id="page-0">
+      <div class="shell">
+        <div class="eyebrow-space"></div>
+        <div class="hero">
+          <div>
+            <h1 class="hero-title">WaterCaste</h1>
+            <div class="hero-tag">Hyper-local water alerts</div>
+            <p class="hero-desc">Real-time rainfall, short-term forecasts, and on-the-ground reports from residents, brought into one early-warning system - built for the locality, not just the district.</p>
+          </div>
+          <div class="map-wrap">
+            <div class="map-stage">
+              <div class="map-tilt" id="indiaMap"></div>
+              <div class="state-tip" id="stateTip"></div>
+            </div>
+            <div class="legend">
+              <div class="legend-title">ANNUAL RAINFALL</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#fdcc05"></span>Under 20 cm</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#fcf796"></span>20 - 40 cm</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#bbf6f9"></span>40 - 50 cm</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#38ccfa"></span>60 - 100 cm</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#0075fa"></span>100 - 150 cm</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#0040a0"></span>150 - 250 cm</div>
+              <div class="legend-row"><span class="legend-swatch" style="background:#8702e6"></span>Over 250 cm</div>
+            </div>
+          </div>
+        </div>
+        <div class="rule" style="margin-top:20px;"></div>
+        <div class="stats-row" id="homeStatsRow"><div class="stat"><div class="stat-num"><span class="nc-num">No Connections</span></div><div class="stat-label">LOCALITIES MONITORED</div></div>
+          <div class="stat"><div class="stat-num"><span class="nc-num">No Connections</span></div><div class="stat-label">ACTIVE ALERTS TODAY</div></div>
+          <div class="stat"><div class="stat-num"><span class="nc-num">No Connections</span></div><div class="stat-label">TANKERS LIVE</div></div>
+        </div>
+        <div class="card-grid">
+          <div class="feature-card blue" data-goto="1">
+            <div class="fc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h4"/></svg></div>
+            <div class="fc-title">News</div>
+            <div class="fc-underline"></div>
+            <div class="fc-desc">Stay ahead of the season with rainfall bulletins and locality risk updates.</div>
+            <ul class="fc-list">
+              <li>Weekly rainfall &amp; reservoir bulletins</li>
+              <li>Locality risk changes as they happen</li>
+              <li>Long-term infrastructure findings</li>
+            </ul>
+            <span class="fc-link">Explore News <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="feature-card olive" data-goto="2">
+            <div class="fc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7l2.5 5L12 17l-2.5-5z"/></svg></div>
+            <div class="fc-title">Request Help</div>
+            <div class="fc-underline"></div>
+            <div class="fc-desc">Report a shortage or flood risk in one step - it routes straight to your local body.</div>
+            <ul class="fc-list">
+              <li>Locality &amp; risk level auto-filled</li>
+              <li>Optional geo-tagged photo</li>
+              <li>Track your request to resolution</li>
+            </ul>
+            <span class="fc-link">Request Help <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+          <div class="feature-card maroon" data-goto="3">
+            <div class="fc-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+            <div class="fc-title">Search Your City</div>
+            <div class="fc-underline"></div>
+            <div class="fc-desc">Check the live status, 7-day forecast, and citizen reports for any locality.</div>
+            <ul class="fc-list">
+              <li>Locality-level status, not just district</li>
+              <li>7-day rainfall probability</li>
+              <li>See how neighbouring areas compare</li>
+            </ul>
+            <span class="fc-link">Search Now <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="page" id="page-1">
+      <div class="shell-narrow">
+        <div class="crumb"><a href="#" data-goto="0">Home</a> / News</div>
+        <h1 class="page-title">Water News &amp; Updates</h1>
+        <p class="page-sub">Rainfall bulletins, locality risk changes, and long-term findings - pulled from the same data that powers your alerts.</p>
+        <div class="rule"></div>
+        <div class="pill-row">
+          <span class="pill active orange">All</span>
+          <span class="pill">Alerts</span>
+          <span class="pill">Rainfall</span>
+          <span class="pill">Infrastructure</span>
+          <span class="pill">Community</span>
+        </div>
+        <div class="news-layout" id="newsLayout">
+          <div><div class="no-conn">No Connections</div></div>
+          <div>
+            <div class="panel" style="margin-bottom:22px;">
+              <div class="panel-title">THIS WEEK'S RISK TICKER</div>
+              <div id="riskTickerList"><div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-title">MOST-REPORTED THIS WEEK</div>
+              <div id="mostReportedList"><div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="page" id="page-2">
+      <div class="shell-narrow">
+        <div class="crumb"><a href="#" data-goto="0">Home</a> / Request Help</div>
+        <h1 class="page-title">Request Help</h1>
+        <p class="page-sub">One report is enough - your locality and risk level are filled in automatically and routed straight to your local body.</p>
+        <div class="rule"></div>
+        <div class="help-layout">
+          <div class="form-panel">
+            <div class="field-label">YOUR LOCALITY</div>
+            <div class="locality-row"><div class="loc" id="sosLocalityDisplay">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="#e3925a" stroke="#e3925a"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.4" fill="#5a2b27" stroke="none"/></svg>
+                <input id="sosLocalityInput" class="loc-input" type="text" placeholder="No Connections - type your area" autocomplete="off" spellcheck="false">
+              </div>
+              <span class="use-loc" id="sosUseLocation">Use current location</span>
+              <div class="geo-suggest" id="sosGeoSuggest"></div>
+            </div>
+            <div class="field-label">ISSUE TYPE</div>
+            <div class="choice-row">
+              <span class="choice-pill sel-olive active" data-group="issue">No Water Supply</span>
+              <span class="choice-pill" data-group="issue">Contaminated Water</span>
+              <span class="choice-pill" data-group="issue">Tanker Delay</span>
+              <span class="choice-pill" data-group="issue">Pipeline Burst</span>
+              <span class="choice-pill" data-group="issue">Other</span>
+            </div>
+            <div class="field-label">URGENCY LEVEL</div>
+            <div class="urgency-row">
+              <span class="urgency-btn" data-group="urgency">Watch</span>
+              <span class="urgency-btn active" data-group="urgency">Warning</span>
+              <span class="urgency-btn" data-group="urgency">Critical</span>
+            </div>
+            <div class="field-label">DESCRIBE WHAT'S HAPPENING</div>
+            <textarea id="sosDescription" placeholder="Describe what's happening - no water, contamination, tanker delay, etc."></textarea>
+            <div class="upload-box" id="sosPhotoBox">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e3925a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <div>
+                <div class="u-title">Add a geo-tagged photo (optional)</div>
+                <div class="u-sub">Verified photo reports carry more weight and build your Trust Score.</div>
+              </div>
+            </div>
+            <button class="sos-btn" id="sosSubmitBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              Send SOS Request
+            </button>
+          </div>
+          <div>
+            <div class="panel" style="margin-bottom:22px;">
+              <div class="panel-title">YOUR TRUST SCORE</div>
+              <div class="trust-row">
+                <div class="trust-ring" id="trustRing">
+                  <svg width="88" height="88" viewBox="0 0 88 88">
+                    <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="7"/>
+                    <circle cx="44" cy="44" r="38" fill="none" stroke="#e3925a" stroke-width="7" stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="238.76"/>
+                  </svg>
+                  <div style="text-align:center;"><div class="trust-num">-</div><div class="trust-den">/100</div></div>
+                </div>
+                <div class="trust-info">
+                  <div class="tv">No Connections</div>
+                  <div class="ts"></div>
+                </div>
+              </div>
+              <div class="trust-foot" id="trustFoot"><span>Reports filed <b>-</b></span><span>Confirmed accurate <b>-</b></span></div>
+            </div>
+            <div class="panel">
+              <div class="panel-title" id="recentSOSTitle">RECENT REQUESTS NEAR YOU</div>
+              <div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="page" id="page-3">
+      <div class="shell">
+        <div class="crumb"><a href="#" data-goto="0">Home</a> / Search Your City</div>
+        <h1 class="page-title">Search Your City</h1>
+        <p class="page-sub">Check the live status, 7-day forecast, and citizen reports for any locality - not just your district.</p>
+        <div class="rule"></div>
+        <div class="search-bar-row">
+          <div class="big-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#84988f" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="citySearchInput" value="" autocomplete="off" spellcheck="false" placeholder="Search any city, town or locality" />
+            <span class="use-loc city-use-loc" id="cityUseLocation" role="button" tabindex="0" title="Use current location"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg><span class="ul-txt">Use current location</span></span>
+            <div class="geo-suggest" id="geoSuggest"></div>
+          </div>
+          <button class="btn-orange" id="citySearchBtn">Search</button>
+        </div>
+        <div id="localityPillRow"><div class="pill-row">
+          <span class="pill">Latur</span>
+          <span class="pill">Jaisalmer</span>
+          <span class="pill">Chennai</span>
+          <span class="pill">Cherrapunji</span>
+          <span class="pill">Bengaluru</span>
+          <span class="pill">Shimla</span>
+          <span class="pill">Kutch</span>
+        </div>
+        <div class="result-head" id="searchResultHead">
+          <div class="no-conn" style="justify-content:flex-start;min-height:0;padding:14px 18px;width:auto;">No Connections</div>
+        </div>
+        <div class="stat-grid" id="searchStatGrid"><div class="metric-card"><div class="metric-label">Reservoir Level</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+          <div class="metric-card"><div class="metric-label">Days Since Rainfall</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+          <div class="metric-card"><div class="metric-label">Citizen Reports (7d)</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+          <div class="metric-card"><div class="metric-label">Scarcity Score</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+        </div>
+        <div class="legend-title" style="margin-bottom:14px;">7-DAY RAINFALL OUTLOOK</div>
+        <div class="day-grid">
+          <div class="no-conn" style="grid-column:1 / -1;">No Connections</div>
+        </div>
+        <div class="bottom-split">
+          <div class="panel">
+            <div class="panel" id="nearbyPanel"><div class="panel-title">NEARBY LOCALITIES - NOT ALL THE SAME</div>
+            <div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">HYPERLOCAL CONSERVATION TIPS</div>
+            <div style="padding:16px 22px 20px;">
+              <div class="no-conn">No Connections</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="page" id="page-4">
+      <div class="shell">
+        <div class="crumb"><a href="#" data-goto="0">Home</a> / Alerts</div>
+        <h1 class="page-title">Active Alerts</h1>
+        <p class="page-sub">Real-time warnings issued for monitored localities - sorted by severity and updated the moment conditions change.</p>
+        <div class="rule"></div>
+        <div class="stat-grid" id="alertsStatGrid"><div class="metric-card"><div class="metric-label">Critical</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+          <div class="metric-card"><div class="metric-label">Warning</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+          <div class="metric-card"><div class="metric-label">Watch</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+          <div class="metric-card"><div class="metric-label">Total Active</div><div class="metric-num"><span class="nc-num">No Connections</span></div><div class="metric-note"></div></div>
+        </div>
+        <div class="pill-row">
+          <span class="pill active">All</span>
+          <span class="pill">Critical</span>
+          <span class="pill">Warning</span>
+          <span class="pill">Watch</span>
+          <span class="pill">Resolved</span>
+        </div>
+        <div class="alerts-layout">
+          <div id="alertsList">
+            <div class="no-conn">No Connections</div>
+          </div>
+          <div>
+            <div class="panel" style="margin-bottom:22px;">
+              <div class="panel-title">ALERT PREFERENCES</div>
+              <div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div>
+            </div>
+            <div class="panel">
+              <div class="panel-title">THIS MONTH</div>
+              <div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<a class="privacy-link" href="/privacy">Privacy</a>
+<script src="/static/js/site.js?v={{ asset_v }}"></script>
+<script src="/static/js/intro.js?v={{ asset_v }}"></script>
+<script src="/static/js/app.js?v={{ asset_v }}"></script>
+</body>
+</html>

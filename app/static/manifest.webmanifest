@@ -1,0 +1,10 @@
+{
+  "name": "WaterCaste - hyper-local water alerts",
+  "short_name": "WaterCaste",
+  "description": "Real-time rainfall, short-term forecasts and community reports, built for the locality - not just the district.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d3a31",
+  "theme_color": "#2d4093",
+  "icons": [{"src": "/static/img/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]
+}
