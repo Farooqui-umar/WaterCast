@@ -271,7 +271,7 @@
       if (kind === "sos") {
         await saveWithProgress("Saving request status...", async () => {
           await apiFetch("/sos/" + id, { method: "PATCH", body: JSON.stringify({ status: val }) });
-          await loadRecentSOS(lastSOSLocality, true);
+          await Promise.all([loadRecentSOS(lastSOSLocality, true), loadMySOS(true)]);
         }, "Request marked " + val);
       }
     } catch (err) {
@@ -883,7 +883,6 @@
       exactLabel = l.label || null;
       showLoc(l.label || (n ? n.name + ", " + n.state : "Your current position"));
       if (useLoc) useLoc.textContent = "Location set ✓" + (l.acc ? " · ±" + Math.round(l.acc) + " m" : l.manual ? " (typed)" : "");
-      loadRecentSOS(currentLocality, silent);
     }
     let sItems = [], sSel = -1, sTimer = null, sReq = 0;
     const sOpen = () => {
@@ -1092,6 +1091,7 @@
           if (textarea) textarea.value = "";
         }, 4e3);
         loadRecentSOS(currentLocality);
+        loadMySOS();
       } catch {
         SL.cancel();
         btn.textContent = "Error - try again";
@@ -1104,35 +1104,75 @@
       }
     });
   }
-  async function loadRecentSOS(locality, silent) {
-    if (!locality) return;
-    lastSOSLocality = locality;
+  const SOS_BADGE = { Pending: "critical", "In Progress": "warning", Resolved: "watch" };
+  function sosRowsHTML(items, editable, own) {
+    return items.map((r) => {
+      const when = r.status === "Resolved" && r.resolved_at ? "resolved " + timeAgo(r.resolved_at) : timeAgo(r.created_at);
+      const right = editable && IS_ADMIN ? selectHTML("sos", r.id, SOS_OPTS, r.status) : `<span class="badge ${SOS_BADGE[r.status] || "watch"}">${esc(r.status)}</span>`;
+      return `<div class="side-list-row"><div>
+          <div class="who">${esc(r.locality_name)} · ${esc(r.issue_type)}</div>
+          <div class="what"><span class="ref">#${r.id}</span> · ${esc(r.urgency)} · ${own ? "sent " : ""}${esc(when)}</div>
+        </div>${right}</div>`;
+    }).join("");
+  }
+  function sosMessage(title) {
+    return `<div class="side-list-row"><div><div class="what" style="margin:0;">${esc(title)}</div></div></div>`;
+  }
+  let sosSearchTerm = "", sosSearchReq = 0;
+  async function loadRecentSOS(_locality, silent) {
+    const list = document.getElementById("recentSOSList");
+    if (!list) return;
+    const term = sosSearchTerm;
+    const token = ++sosSearchReq;
     const titleEl = document.getElementById("recentSOSTitle");
-    const L = !silent && titleEl ? WCProg.mount(titleEl, { label: "Loading requests", mode: "after", compact: true, min: 550 }) : null;
+    const L = !silent && titleEl ? WCProg.mount(titleEl, { label: term ? "Searching requests" : "Loading requests", mode: "after", compact: true, min: 450 }) : null;
     try {
-      const items = await apiFetch("/sos?locality=" + encodeURIComponent(locality) + "&limit=" + (IS_ADMIN ? 10 : 5));
+      const items = await apiFetch("/sos?" + new URLSearchParams(term ? { q: term, limit: 100 } : { days: 5, limit: 100 }), { fresh: true });
       if (L) await L.done();
-      const title = document.getElementById("recentSOSTitle");
-      if (!title) return;
-      const panel = title.closest(".panel");
-      if (!panel) return;
-      panel.querySelectorAll(".side-list-row, .no-conn, .no-data").forEach((r) => r.remove());
-      if (!items.length) {
-        panel.insertAdjacentHTML("beforeend", '<div class="side-list-row" style="padding-bottom:20px;"><div><div class="who">No recent requests</div><div class="what">Be the first to file one.</div></div></div>');
-        return;
-      }
-      const urgClasses = { Critical: "critical", Warning: "warning", Watch: "watch", Pending: "critical", "In Progress": "warning", Resolved: "watch" };
-      panel.insertAdjacentHTML("beforeend", items.map((r, i) => `
-        <div class="side-list-row"${i === items.length - 1 ? ' style="padding-bottom:20px;"' : ""}>
-          <div>
-            <div class="who">${r.locality_name} · ${r.issue_type}</div>
-            <div class="what">${r.status} · ${timeAgo(r.created_at)}</div>
-          </div>
-          ${IS_ADMIN ? selectHTML("sos", r.id, SOS_OPTS, r.status) : `<span class="badge ${urgClasses[r.status] || "watch"}">${r.status}</span>`}
-        </div>`).join(""));
-    } catch {
+      if (token !== sosSearchReq) return;
+      list.innerHTML = items.length ? sosRowsHTML(items, true, false) : sosMessage(term ? "No matches" : "No requests yet");
+    } catch (e) {
       if (L) L.cancel();
+      if (token !== sosSearchReq) return;
+      list.innerHTML = '<div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div>';
     }
+  }
+  async function loadMySOS(silent) {
+    const list = document.getElementById("mySOSList");
+    if (!list) return;
+    const titleEl = document.getElementById("mySOSTitle");
+    const L = !silent && titleEl ? WCProg.mount(titleEl, { label: "Finding your requests", mode: "after", compact: true, min: 450 }) : null;
+    try {
+      const items = await apiFetch("/sos/mine?" + new URLSearchParams({ device_id: DEVICE_ID }), { fresh: true });
+      if (L) await L.done();
+      list.innerHTML = items.length ? sosRowsHTML(items, false, true) : sosMessage("No requests yet");
+    } catch (e) {
+      if (L) L.cancel();
+      list.innerHTML = '<div class="no-conn" style="margin:16px 22px 22px;width:auto;">No Connections</div>';
+    }
+  }
+  function initSOSSearch() {
+    const input = document.getElementById("sosSearchInput");
+    if (!input || input.dataset.wcWired) return;
+    input.dataset.wcWired = "1";
+    let t = null;
+    const run = () => {
+      const v = input.value.trim();
+      if (v === sosSearchTerm) return;
+      sosSearchTerm = v;
+      loadRecentSOS(null);
+    };
+    input.addEventListener("input", () => {
+      clearTimeout(t);
+      t = setTimeout(run, 300);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        clearTimeout(t);
+        run();
+      }
+    });
   }
   async function loadLocalities() {
     const pillRow = document.getElementById("localityPillRow");
@@ -1576,10 +1616,12 @@
       if (btn.classList.contains("busy")) return;
       if (!navigator.geolocation) {
         setTxt("Location not supported");
+        markLocationState("Location unavailable");
         return;
       }
       btn.classList.add("busy");
       setTxt("Locating…");
+      setSearchPlaceholders("Locating…");
       hideSuggest();
       setOtherMatches([]);
       const token = ++placeReq;
@@ -1604,6 +1646,7 @@
         if (inp) inp.value = label;
         document.querySelectorAll("#localityPillRow .pill").forEach((x) => x.classList.remove("active", "orange"));
         setTxt("Location set ✓" + (accuracy ? " · ±" + Math.round(accuracy) + " m" : ""));
+        setSearchPlaceholders("No Connections");
         addMyLocPill();
         loadPlace({
           name: (r && (r.place || r.label)) || "Your current position",
@@ -1619,7 +1662,7 @@
         if (token !== placeReq) return;
         const denied = err && err.code === 1;
         setTxt(denied ? "Location denied - click to retry" : "Could not get location - click to retry");
-        searchHead(errHead(denied ? "Location permission denied" : "Location unavailable", denied ? "allow location access for this site in your browser, or type your locality instead" : "your device could not find its position - try again or type your locality"));
+        markLocationState(denied ? "Location denied" : "Location unavailable");
       }, { enableHighAccuracy: true, timeout: 15e3, maximumAge: 0 });
     };
     btn.addEventListener("click", run);
@@ -1629,6 +1672,23 @@
         run();
       }
     });
+    btn._wcRun = run;
+  }
+  const PLACEHOLDER_TEXTS = ["No Connections", "Location denied", "Location unavailable", "Locating…"];
+  function setSearchPlaceholders(label) {
+    const page = $id("page-3");
+    if (!page) return;
+    page.querySelectorAll(".no-conn, .nc-num").forEach((el) => {
+      if (PLACEHOLDER_TEXTS.includes(el.textContent.trim())) el.textContent = label;
+    });
+  }
+  function markLocationState(label) {
+    setSearchPlaceholders(label);
+    searchHead(`<div class="no-conn" style="justify-content:flex-start;min-height:0;padding:14px 18px;width:auto;">${esc(label)}</div>`);
+  }
+  function autoLocate() {
+    const btn = $id("cityUseLocation");
+    if (btn && typeof btn._wcRun === "function") btn._wcRun();
   }
   function initSearchBar() {
     initSuggest();
@@ -1677,7 +1737,11 @@
     }));
     loadLocalities().catch(() => {});
     initSOSForm();
+    initSOSSearch();
+    loadRecentSOS(null);
+    loadMySOS();
     initSearchBar();
+    autoLocate();
     loadTrustScore().catch(() => {});
   }
   if (document.readyState === "loading") {

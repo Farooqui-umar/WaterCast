@@ -106,7 +106,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> dict:
         "DEBUG": False,
         "SECRET_KEY": secret,
         "APP_VERSION": env.get("APP_VERSION") or "1.2.0",
-        "ASSET_VERSION": env.get("ASSET_VERSION") or env.get("APP_VERSION") or "1.2.0",
+        "ASSET_VERSION": env.get("ASSET_VERSION") or "",
         "SQLALCHEMY_DATABASE_URI": db_url,
         "SQLALCHEMY_ENGINE_OPTIONS": engine_options,
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,

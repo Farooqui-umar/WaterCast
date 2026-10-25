@@ -30,6 +30,15 @@ def _sqlite_pragmas(dbapi_connection, _):
         cur.close()
 
 
+def _asset_fingerprint(static_dir: Path) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(static_dir.rglob("*")):
+        if path.is_file() and path.suffix in {".js", ".css", ".webmanifest", ".svg", ".woff2"}:
+            digest.update(str(path.relative_to(static_dir)).encode())
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 def create_app(overrides: dict | None = None) -> Flask:
     if os.environ.get("APP_ENV", "development") == "development":
         try:
@@ -53,6 +62,8 @@ def create_app(overrides: dict | None = None) -> Flask:
     if overrides:
         app.config.update(overrides)
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
+    if not app.config.get("ASSET_VERSION"):
+        app.config["ASSET_VERSION"] = _asset_fingerprint(BASE_DIR / "static")
     app.json.sort_keys = False
     if app.config.get("CACHE_TYPE") == "FileSystemCache":
         try:

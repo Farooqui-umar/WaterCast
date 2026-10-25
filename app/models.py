@@ -36,17 +36,22 @@ class SOSRequest(db.Model):
     has_photo = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(20), nullable=False, default="Pending")
     created_at = db.Column(UTCDateTime, nullable=False, default=utcnow)
+    requester_ip_hash = db.Column(db.String(64))
+    resolved_at = db.Column(UTCDateTime)
 
     __table_args__ = (
         Index("ix_sos_locality_created", "locality_name", "created_at"),
         Index("ix_sos_device_created", "device_id", "created_at"),
         Index("ix_sos_created", "created_at"),
+        Index("ix_sos_requester_ip", "requester_ip_hash"),
+        Index("ix_sos_status_created", "status", "created_at"),
     )
 
     def to_dict(self) -> dict:
         return {"id": self.id, "locality_name": self.locality_name, "lat": self.lat, "lon": self.lon,
                 "issue_type": self.issue_type, "urgency": self.urgency, "description": self.description,
-                "has_photo": self.has_photo, "status": self.status, "created_at": iso(self.created_at)}
+                "has_photo": self.has_photo, "status": self.status, "created_at": iso(self.created_at),
+                "resolved_at": iso(self.resolved_at) if self.resolved_at else None}
 
 
 class Vote(db.Model):
