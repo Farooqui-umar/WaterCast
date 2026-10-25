@@ -1,6 +1,9 @@
+import hashlib
+import hmac
 from datetime import timedelta
 
-from flask import jsonify, request
+from flask import current_app, jsonify, request
+from sqlalchemy import or_
 
 from ..errors import ApiError
 from ..extensions import db, limiter
@@ -16,11 +19,26 @@ URGENCIES = ("Watch", "Warning", "Critical")
 STATUSES = ("Pending", "In Progress", "Resolved")
 TRUST_BASE = 50
 MAX_SOS_PER_DEVICE_PER_HOUR = 5
+RECENT_DAYS = 5
+OWN_RESOLVED_DAYS = 5
 
 
 def _public_view(row: SOSRequest) -> dict:
     return {"id": row.id, "locality_name": row.locality_name, "issue_type": row.issue_type, "urgency": row.urgency,
-            "status": row.status, "has_photo": row.has_photo, "created_at": row.created_at.isoformat()}
+            "status": row.status, "has_photo": row.has_photo, "created_at": row.created_at.isoformat(),
+            "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None}
+
+
+def _ip_hash() -> str | None:
+    ip = (request.remote_addr or "").strip()
+    if not ip:
+        return None
+    key = current_app.config["SECRET_KEY"].encode()
+    return hmac.new(key, b"sos-ip:" + ip.encode(), hashlib.sha256).hexdigest()
+
+
+def _view(row: SOSRequest) -> dict:
+    return row.to_dict() if current_user() is not None else _public_view(row)
 
 
 @bp.post("/sos")
@@ -42,7 +60,8 @@ def create_sos():
         raise ApiError(429, "You have sent several requests in the last hour. Please wait before sending another.")
 
     sos = SOSRequest(device_id=dev, locality_name=locality, lat=lat, lon=lon, issue_type=issue, urgency=urgency,
-                     description=description, has_photo=has_photo, status="Pending")
+                     description=description, has_photo=has_photo, status="Pending",
+                     requester_ip_hash=_ip_hash())
     db.session.add(sos)
     trust = db.session.get(TrustScore, dev)
     if trust is None:
@@ -62,12 +81,43 @@ def create_sos():
 def list_sos():
     q = SOSRequest.query
     locality = clean_text(request.args.get("locality"), "locality", max_len=120)
+    term = clean_text(request.args.get("q"), "q", max_len=80)
     if locality:
         q = q.filter(db.func.lower(SOSRequest.locality_name) == locality.lower())
-    limit = query_int("limit", 20, lo=1, hi=100)
+    if term:
+        ref = term.lstrip("#").strip()
+        like = "%" + term.lower().replace("\\", "").replace("%", "").replace("_", "") + "%"
+        conds = [db.func.lower(SOSRequest.locality_name).like(like), db.func.lower(SOSRequest.issue_type).like(like),
+                 db.func.lower(SOSRequest.status).like(like), db.func.lower(SOSRequest.urgency).like(like)]
+        if ref.isdigit():
+            conds.append(SOSRequest.id == int(ref))
+        q = q.filter(or_(*conds))
+    else:
+        days = query_int("days", RECENT_DAYS, lo=1, hi=30)
+        q = q.filter(SOSRequest.created_at >= utcnow() - timedelta(days=days))
+    limit = query_int("limit", 50, lo=1, hi=100)
     rows = q.order_by(SOSRequest.created_at.desc(), SOSRequest.id.desc()).limit(limit).all()
-    if current_user() is not None:
-        return jsonify([r.to_dict() for r in rows])
+    return jsonify([_view(r) for r in rows])
+
+
+@bp.get("/sos/mine")
+@limiter.limit("120 per minute")
+def my_sos():
+    owners = []
+    ip_hash = _ip_hash()
+    if ip_hash:
+        owners.append(SOSRequest.requester_ip_hash == ip_hash)
+    raw_dev = request.args.get("device_id")
+    if raw_dev:
+        owners.append(SOSRequest.device_id == device_id(raw_dev))
+    if not owners:
+        return jsonify([])
+    cutoff = utcnow() - timedelta(days=OWN_RESOLVED_DAYS)
+    visible = or_(SOSRequest.status != "Resolved",
+                  SOSRequest.resolved_at >= cutoff,
+                  db.and_(SOSRequest.resolved_at.is_(None), SOSRequest.created_at >= cutoff))
+    rows = (SOSRequest.query.filter(or_(*owners)).filter(visible)
+            .order_by(SOSRequest.created_at.desc(), SOSRequest.id.desc()).limit(100).all())
     return jsonify([_public_view(r) for r in rows])
 
 
@@ -79,6 +129,10 @@ def update_sos(sos_id: int):
         raise ApiError(404, "Request not found.")
     status = choice(json_body().get("status"), "status", STATUSES)
     old, row.status = row.status, status
+    if status == "Resolved" and old != "Resolved":
+        row.resolved_at = utcnow()
+    elif status != "Resolved":
+        row.resolved_at = None
     db.session.commit()
     ai_scores.invalidate_trust(row.device_id)
     audit("sos.status", target=f"sos:{sos_id}", detail=f"{old} -> {status}")
