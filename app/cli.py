@@ -117,14 +117,7 @@ def bootstrap_admin_cmd():
         raise click.ClickException(str(exc)) from exc
 
 
-@click.command("purge-old")
-@click.option("--days", type=int, default=None, help="Override DATA_RETENTION_DAYS")
-@with_appcontext
-def purge_old_cmd(days):
-    days = days if days is not None else current_app.config["DATA_RETENTION_DAYS"]
-    if days <= 0:
-        click.echo("Retention is disabled (DATA_RETENTION_DAYS <= 0); nothing deleted.")
-        return
+def purge_old(days: int) -> dict:
     cutoff = utcnow() - timedelta(days=days)
     counts = {}
     for model in (SOSRequest, Vote, Alert, CommunityPost):
@@ -135,6 +128,18 @@ def purge_old_cmd(days):
     counts["trust_scores"] = TrustScore.query.filter(~TrustScore.device_id.in_(live)).delete(synchronize_session=False) \
         if live else TrustScore.query.delete(synchronize_session=False)
     db.session.commit()
+    return counts
+
+
+@click.command("purge-old")
+@click.option("--days", type=int, default=None, help="Override DATA_RETENTION_DAYS")
+@with_appcontext
+def purge_old_cmd(days):
+    days = days if days is not None else current_app.config["DATA_RETENTION_DAYS"]
+    if days <= 0:
+        click.echo("Retention is disabled (DATA_RETENTION_DAYS <= 0); nothing deleted.")
+        return
+    counts = purge_old(days)
     click.echo(f"Deleted data older than {days} days: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
 
 

@@ -1,0 +1,9 @@
+.venv
+instance
+.env
+.env.*
+**/__pycache__
+deploy
+Dockerfile
+docker-compose.yml
+start.bat

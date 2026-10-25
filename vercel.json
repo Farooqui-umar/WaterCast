@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "flask",
+  "functions": {
+    "wsgi.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{.venv/**,instance/**,deploy/**,tests/**,**/__pycache__/**,Dockerfile,docker-compose.yml,start.bat,run_dev.py,gunicorn.conf.py,.env}"
+    }
+  },
+  "crons": [
+    {
+      "path": "/cron/purge",
+      "schedule": "30 3 * * *"
+    }
+  ]
+}

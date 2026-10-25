@@ -50,9 +50,15 @@ def normalise_database_url(url: str) -> str:
     return url
 
 
+def on_vercel(env: Mapping[str, str] | None = None) -> bool:
+    env = os.environ if env is None else env
+    return bool(env.get("VERCEL"))
+
+
 def load_settings(env: Mapping[str, str] | None = None) -> dict:
     env = os.environ if env is None else env
-    app_env = (env.get("APP_ENV") or "development").strip().lower()
+    vercel = on_vercel(env)
+    app_env = (env.get("APP_ENV") or ("production" if vercel else "development")).strip().lower()
     if app_env not in {"development", "production", "testing"}:
         raise ConfigError("APP_ENV must be development, production or testing")
     prod = app_env == "production"
@@ -66,9 +72,13 @@ def load_settings(env: Mapping[str, str] | None = None) -> dict:
     elif not secret:
         secret = secrets.token_urlsafe(48)
 
-    db_url = env.get("DATABASE_URL") or ""
-    if prod and not db_url:
+    db_url = env.get("DATABASE_URL") or env.get("POSTGRES_URL") or ""
+    ephemeral_db = False
+    if prod and not db_url and not vercel:
         raise ConfigError("DATABASE_URL must be set in production (PostgreSQL is recommended)")
+    if not db_url and vercel:
+        db_url = "sqlite:////tmp/watercast.db"
+        ephemeral_db = True
     if not db_url:
         (BASE_DIR / "instance").mkdir(exist_ok=True)
         db_url = "sqlite:///" + str(BASE_DIR / "instance" / ("test.db" if testing else "watercast.db"))
@@ -76,10 +86,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> dict:
 
     engine_options: dict = {"pool_pre_ping": True}
     if not db_url.startswith("sqlite"):
-        engine_options.update(pool_recycle=1800, pool_size=env_int(env, "DB_POOL_SIZE", 5),
-                              max_overflow=env_int(env, "DB_MAX_OVERFLOW", 10))
+        engine_options.update(pool_recycle=1800, pool_size=env_int(env, "DB_POOL_SIZE", 2 if vercel else 5),
+                              max_overflow=env_int(env, "DB_MAX_OVERFLOW", 3 if vercel else 10))
 
-    redis_url = env.get("REDIS_URL") or ""
+    redis_url = env.get("REDIS_URL") or env.get("KV_URL") or ""
     contact = env.get("CONTACT_EMAIL") or ""
     open_meteo_key = env.get("OPEN_METEO_API_KEY") or ""
     geocoder_key = env.get("GEOCODER_API_KEY") or ""
@@ -88,6 +98,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> dict:
 
     settings = {
         "APP_ENV": app_env,
+        "ON_VERCEL": vercel,
+        "EPHEMERAL_DATABASE": ephemeral_db,
+        "AUTO_MIGRATE": env_bool(env, "AUTO_MIGRATE", vercel),
+        "CRON_SECRET": env.get("CRON_SECRET") or "",
         "TESTING": testing,
         "DEBUG": False,
         "SECRET_KEY": secret,
@@ -110,7 +124,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> dict:
         "RATELIMIT_DEFAULT": env.get("RATELIMIT_DEFAULT") or "240 per minute",
         "RATELIMIT_HEADERS_ENABLED": True,
         "CACHE_TYPE": "RedisCache" if redis_url else ("SimpleCache" if testing else "FileSystemCache"),
-        "CACHE_DIR": env.get("CACHE_DIR") or str(BASE_DIR / "instance" / "cache"),
+        "CACHE_DIR": env.get("CACHE_DIR") or ("/tmp/watercast-cache" if vercel else str(BASE_DIR / "instance" / "cache")),
         "CACHE_THRESHOLD": env_int(env, "CACHE_THRESHOLD", 5000),
         "CACHE_REDIS_URL": redis_url or None,
         "CACHE_DEFAULT_TIMEOUT": 600,
@@ -144,10 +158,10 @@ def load_settings(env: Mapping[str, str] | None = None) -> dict:
         "SACHET_FEEDS": env_list(env, "SACHET_FEEDS",
                                  "https://sachet.ndma.gov.in/cap_public_website/rss/rss_india.xml,"
                                  "https://sachet.ndma.gov.in/cap_public_website/rss/rss_maharashtra.xml"),
-        "SACHET_INSECURE_TLS_FALLBACK": env_bool(env, "SACHET_INSECURE_TLS_FALLBACK", not prod),
+        "SACHET_INSECURE_TLS_FALLBACK": env_bool(env, "SACHET_INSECURE_TLS_FALLBACK", vercel or not prod),
         "HOT_ALERT_THRESHOLD": env_int(env, "HOT_ALERT_THRESHOLD", 10),
         "HOT_ALERT_DAYS": env_int(env, "HOT_ALERT_DAYS", 3),
-        "COMPRESS_RESPONSES": env_bool(env, "COMPRESS_RESPONSES", True),
+        "COMPRESS_RESPONSES": env_bool(env, "COMPRESS_RESPONSES", not vercel),
         "COMPRESS_LEVEL": env_int(env, "COMPRESS_LEVEL", 5),
         "GEMINI_API_KEY": env.get("GEMINI_API_KEY") or GEMINI_API_KEY,
         "GEMINI_API_URL": env.get("GEMINI_API_URL") or "https://generativelanguage.googleapis.com/v1beta",

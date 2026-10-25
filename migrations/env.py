@@ -7,7 +7,8 @@ from alembic import context
 
 config = context.config
 
-fileConfig(config.config_file_name)
+if not logging.getLogger().handlers:
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 logger = logging.getLogger('alembic.env')
 
 

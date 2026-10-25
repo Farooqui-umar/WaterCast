@@ -4,13 +4,14 @@ import os
 from pathlib import Path
 
 import hashlib
+import hmac
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from .config import ConfigError, load_settings
+from .config import ConfigError, load_settings, on_vercel
 from .extensions import cache, db, limiter, migrate
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -37,8 +38,18 @@ def create_app(overrides: dict | None = None) -> Flask:
         except ImportError:
             pass
 
+    try:
+        settings = load_settings()
+    except ConfigError as exc:
+        if not on_vercel():
+            raise
+        import logging
+        logging.getLogger("watercast.startup").error("Configuration error: %s", exc)
+        from .startup import setup_needed_app
+        return setup_needed_app(str(exc))
+
     app = Flask(__name__, static_folder="static", template_folder="templates")
-    app.config.update(load_settings())
+    app.config.update(settings)
     if overrides:
         app.config.update(overrides)
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
@@ -111,6 +122,18 @@ def register_pages(app: Flask) -> None:
     @app.get("/healthz")
     def healthz():
         return jsonify({"status": "ok"})
+
+    @app.get("/cron/purge")
+    def cron_purge():
+        secret = app.config.get("CRON_SECRET") or ""
+        given = request.headers.get("Authorization", "")
+        if not secret or not hmac.compare_digest(given, f"Bearer {secret}"):
+            return jsonify({"error": "Not found."}), 404
+        days = app.config["DATA_RETENTION_DAYS"]
+        if days <= 0:
+            return jsonify({"ok": True, "deleted": {}, "note": "retention disabled"})
+        from .cli import purge_old
+        return jsonify({"ok": True, "days": days, "deleted": purge_old(days)})
 
 
     @app.get("/manifest.webmanifest")
